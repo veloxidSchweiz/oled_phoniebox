@@ -9,12 +9,12 @@ def Init(File):
     config.sections()
     return config
 
-def get_device(deviceName):
+def get_device(deviceName,height=64):
     from luma.core import cmdline, error
     """
     Create device from command-line arguments and return it.
     """
-    actual_args = ['-d', deviceName]
+    actual_args = ['-d', deviceName,'--height',str(height)]
     parser = cmdline.create_parser(description='luma.examples arguments')
     args = parser.parse_args(actual_args)
     if args.config:
