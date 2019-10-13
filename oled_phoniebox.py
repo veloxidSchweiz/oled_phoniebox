@@ -5,9 +5,10 @@
 
 import signal
 import sys
+import logging
 import atexit
 sys.path.append("/home/pi/oled_phoniebox/scripts/")
-from scripts.o4p_functions import Init,get_device,GetCurrContrast,SetCharacters,GetMPC,Getself.WifiConn,Getself.specialInfos, SetNewMode
+from scripts.o4p_functions import Init,get_device,GetCurrContrast,SetCharacters,GetMPC,GetWifiConn,GetSpecialInfos, SetNewMode
 from time import sleep
 from datetime import datetime
 import os
@@ -21,6 +22,7 @@ font_midtower = ImageFont.truetype(font_path, 42)
 font_hightower = ImageFont.truetype(font_path, 54)
 font_path_wifi = os.path.abspath(os.path.join(os.path.dirname(__file__),
                             'fonts', 'WIFI.ttf'))
+image_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),'images'))
 font_wifi = ImageFont.truetype(font_path_wifi, 64)
 font_wifi_mix = ImageFont.truetype(font_path_wifi, 48)
 
@@ -28,6 +30,16 @@ confFile = "/home/pi/oled_phoniebox/oled_phoniebox.conf"
 tempFile = "/tmp/o4p_overview.temp"
 version = "1.8.3 - 20190626"
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(ch)
 
 
 
@@ -45,7 +57,7 @@ class PhonieBoxOledDisplay():
         self.oldPlaying = "-"
         self.displayTime = 0.5
         self.oldVol = "FirstStart"
-        self.WifiConn = Getself.WifiConn()
+        self.WifiConn = GetWifiConn()
         self.special = 0
         self.lenLine1 = -1
         self.lenLine2 = -1
@@ -56,14 +68,21 @@ class PhonieBoxOledDisplay():
         self.line4org = 49
         self.line4 = self.device.height-1-10
         self.timetoshow = 1
-        atexit.register(self.cleanup)
+
+    def __del__(self):
+        logger.info('delete')
+        os._exit(0)
+        #self.cleanup()
 
     def cleanup(self):
         self.ShowImage("poweroff")
         sleep(1)
+        logger.info('cleanup done')
 
     def ShowImage(self, imgname):
-        img_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'images', imgname + '.png'))
+        logger.info(f'ShowImage {imgname}')
+        img_path = os.path.abspath(os.path.join(image_dir, imgname + '.png'))
+        logger.info(f'ShowImage {img_path}')
         logo = Image.open(img_path).convert("RGBA")
         fff = Image.new(logo.mode, logo.size, (255,) * 4)
         background = Image.new("RGBA", self.device.size, "black")
@@ -84,11 +103,11 @@ class PhonieBoxOledDisplay():
             sleep(0.8)
             seconds = int(seconds)%5
             if seconds == 0:
-                self.WifiConn = Getself.WifiConn()
+                self.WifiConn = GetWifiConn()
             try:
             #if self.WifiConn != "BUGFIXING_LINE":
                 if (os.path.exists(tempFile)) or (self.special == 1):
-                    self.specialInfos = Getself.specialInfos()
+                    self.specialInfos = GetSpecialInfos()
                     if self.special == 0:
                         self.special = 1
                         self.timetoshow = 10
@@ -390,18 +409,22 @@ class PhonieBoxOledDisplay():
 #if __name__ == "__main__":
 initVars = Init(confFile)
 
+device = get_device(initVars['GENERAL']['controller'],height=initVars['GENERAL'].get('height',64))
+display = PhonieBoxOledDisplay(device=device)
+
+def sigterm_handler(signal, frame):
+    # save the state here or do whatever you want
+    logger.info('Handling sigterm')
+    display.cleanup()
+    logger.info('exit')
+    os._exit(0)
+
+signal.signal(signal.SIGTERM, sigterm_handler)
 try:
-    device = get_device(initVars['GENERAL']['controller'],height=initVars['GENERAL'].get('height',64))
-    display = PhonieBoxOledDisplay(device=device)
-
-    def sigterm_handler(signal, frame):
-        # save the state here or do whatever you want
-        device.cleanup()
-        os._exit(0)
-
-    signal.signal(signal.SIGTERM, sigterm_handler)
     display.main()
 except KeyboardInterrupt:
+    display.cleanup()
+    os._exit(0)
     pass
 
 
