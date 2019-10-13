@@ -391,7 +391,7 @@ class PhonieBoxOledDisplay():
 initVars = Init(confFile)
 
 try:
-    device = get_device(initVars['GENERAL']['controller'])
+    device = get_device(initVars['GENERAL']['controller'],height=initVars['GENERAL'].get('height',64))
     display = PhonieBoxOledDisplay(device=device)
 
     def sigterm_handler(signal, frame):
