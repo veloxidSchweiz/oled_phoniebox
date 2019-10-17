@@ -68,6 +68,7 @@ class PhonieBoxOledDisplay():
         self.line4org = 49
         self.line4 = self.device.height-1-10
         self.timetoshow = 1
+        self.confFile = Init(os.path.join(os.path.dirname(__file__),'oled_phoniebox.conf'))
 
     def __del__(self):
         logger.info('delete')
@@ -82,17 +83,19 @@ class PhonieBoxOledDisplay():
     def ShowImage(self, imgname):
         logger.info(f'ShowImage {imgname}')
         img_path = os.path.abspath(os.path.join(image_dir, imgname + '.png'))
-        logger.info(f'ShowImage {img_path}')
+        # logger.info(f'ShowImage {img_path}')
         logo = Image.open(img_path).convert("RGBA")
         fff = Image.new(logo.mode, logo.size, (255,) * 4)
         background = Image.new("RGBA", self.device.size, "black")
         posn = ((self.device.width - logo.width) // 2, 0)
         img = Image.composite(logo, fff, logo)
         background.paste(img, posn)
-        self.device.display(background.convert(device.mode))
+        self.device.display(background.convert(self.device.mode))
+
+        logger.info(f'Showing Image {imgname}')
 
     def main(self, num_iterations=sys.maxsize):
-        oldContrast = GetCurrContrast(confFile)
+        oldContrast = GetCurrContrast(self.confFile)
         self.device.contrast(oldContrast)
         self.ShowImage("music")
 
@@ -128,13 +131,13 @@ class PhonieBoxOledDisplay():
                     if os.path.exists(tempFile):
                         self.timetoshow = 10
                         os.remove(tempFile)
-                        newMode = SetNewMode(confFile)
+                        newMode = SetNewMode(self.confFile)
                         initVars.set('GENERAL', 'mode', newMode)
                         with canvas(self.device) as draw:
                             draw.text((0, self.line1),initVars['GENERAL']['mode'],font=font_hightower, fill="white")
                         sleep(self.displayTime)
                 else:
-                    currContrast = GetCurrContrast(confFile)
+                    currContrast = GetCurrContrast(self.confFile)
                     if currContrast != oldContrast:
                         self.device.contrast(currContrast)
                         oldContrast = currContrast
@@ -406,25 +409,25 @@ class PhonieBoxOledDisplay():
                 sleep(0.5)
                 self.ShowImage("music")
 
-#if __name__ == "__main__":
-initVars = Init(confFile)
+if __name__ == "__main__":
+    initVars = Init(confFile)
 
-device = get_device(initVars['GENERAL']['controller'],height=initVars['GENERAL'].get('height',64))
-display = PhonieBoxOledDisplay(device=device)
+    device = get_device(initVars['GENERAL']['controller'],height=initVars['GENERAL'].get('height',64))
+    display = PhonieBoxOledDisplay(device=device)
 
-def sigterm_handler(signal, frame):
-    # save the state here or do whatever you want
-    logger.info('Handling sigterm')
-    display.cleanup()
-    logger.info('exit')
-    os._exit(0)
+    def sigterm_handler(signal, frame):
+        # save the state here or do whatever you want
+        logger.info('Handling sigterm')
+        display.cleanup()
+        logger.info('exit')
+        os._exit(0)
 
-signal.signal(signal.SIGTERM, sigterm_handler)
-try:
-    display.main()
-except KeyboardInterrupt:
-    display.cleanup()
-    os._exit(0)
-    pass
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    try:
+        display.main()
+    except KeyboardInterrupt:
+        display.cleanup()
+        os._exit(0)
+        pass
 
 

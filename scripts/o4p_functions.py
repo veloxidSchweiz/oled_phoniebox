@@ -28,11 +28,7 @@ def get_device(deviceName,height=64):
         parser.error(e)
     return device
 
-def GetCurrContrast(File):
-    import configparser
-    config = configparser.ConfigParser()
-    config.read(File)
-    config.sections()
+def GetCurrContrast(config):
     return int(config['GENERAL']['contrast'])
 
 def SetNewMode(File):
