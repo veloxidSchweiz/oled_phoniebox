@@ -134,29 +134,7 @@ class PhonieBoxOledDisplay:
                                                                                                           "")  # .split("/")[0]
                             file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
                             if initVars['GENERAL']['mode'] == "full":
-                                if file.startswith("http"):  # if it is a http stream!
-                                    txtLine1 = SetCharacters(GetMPC("mpc -f %name% current"))
-                                    txtLine2 = SetCharacters(GetMPC("mpc -f %title% current"))
-                                    txtLine3 = ""
-                                    track = "--/--"
-                                else:  # if it is not a stream
-                                    self.lenLine1 = -1
-                                    self.lenLine2 = -1
-                                    self.lenLine3 = -1
-                                    self.subLine1 = 0
-                                    self.subLine2 = 0
-                                    self.subLine3 = 0
-                                    self.linePos = 1
-                                    txtLine1 = SetCharacters(GetMPC("mpc -f %album% current"))
-                                    txtLine3 = SetCharacters(GetMPC("mpc -f %title% current"))
-                                    txtLine2 = SetCharacters(GetMPC("mpc -f %artist% current"))
-                                if txtLine2 == "\n":
-                                    filename = SetCharacters(GetMPC("mpc -f %file% current"))
-                                    filename = filename.split(":")[2]
-                                    filename = SetCharacters(filename)
-                                    localfile = filename.split("/")
-                                    txtLine1 = localfile[1]
-                                    txtLine2 = localfile[0]
+                                track, txtLine1, txtLine2, txtLine3 = self.show_change_display(file, track)
                         if initVars['GENERAL']['mode'] == "lite":
                             elapsed, track, xpos, xpos_w = self.display_lite_mode(elapsed, file, mpc_state, mpcstatus,
                                                                                   track, xpos, xpos_w)
@@ -177,6 +155,32 @@ class PhonieBoxOledDisplay:
             except:
                 sleep(0.5)
                 self.ShowImage("music")
+
+    def show_change_display(self, file, track):
+        if file.startswith("http"):  # if it is a http stream!
+            txtLine1 = SetCharacters(GetMPC("mpc -f %name% current"))
+            txtLine2 = SetCharacters(GetMPC("mpc -f %title% current"))
+            txtLine3 = ""
+            track = "--/--"
+        else:  # if it is not a stream
+            self.lenLine1 = -1
+            self.lenLine2 = -1
+            self.lenLine3 = -1
+            self.subLine1 = 0
+            self.subLine2 = 0
+            self.subLine3 = 0
+            self.linePos = 1
+            txtLine1 = SetCharacters(GetMPC("mpc -f %album% current"))
+            txtLine3 = SetCharacters(GetMPC("mpc -f %title% current"))
+            txtLine2 = SetCharacters(GetMPC("mpc -f %artist% current"))
+        if txtLine2 == "\n":
+            filename = SetCharacters(GetMPC("mpc -f %file% current"))
+            filename = filename.split(":")[2]
+            filename = SetCharacters(filename)
+            localfile = filename.split("/")
+            txtLine1 = localfile[1]
+            txtLine2 = localfile[0]
+        return track, txtLine1, txtLine2, txtLine3
 
     def display_full_mode(self, currMPC, elapsed, file, mpc_state, mpcstatus, track, txtLine1, txtLine2, txtLine3, vol):
         if self.lenLine1 == -1:
