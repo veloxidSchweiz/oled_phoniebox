@@ -2,3 +2,5 @@
 pytest
 mock
 luma.oled
+netifaces
+python-mpd2

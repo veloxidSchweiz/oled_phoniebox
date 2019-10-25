@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: iso-8859-15 -*-
 #
-
+import platform
+from luma.core import device as luma_device
+from mpd import MPDClient
 def Init(File):
     import configparser
     config = configparser.ConfigParser()
@@ -9,23 +11,26 @@ def Init(File):
     config.sections()
     return config
 
-def get_device(deviceName,height=64):
+def get_device(deviceName,height=64,width=128):
     from luma.core import cmdline, error
     """
     Create device from command-line arguments and return it.
     """
-    actual_args = ['-d', deviceName,'--height',str(height)]
-    parser = cmdline.create_parser(description='luma.examples arguments')
-    args = parser.parse_args(actual_args)
-    if args.config:
-        # load config from file
-        config = cmdline.load_config(args.config)
-        args = parser.parse_args(config + actual_args)
-    # create device
-    try:
-        device = cmdline.create_device(args)
-    except error.Error as e:
-        parser.error(e)
+    if deviceName == 'dummy':
+        device = luma_device.dummy(width=width, height=height, rotate=0, mode='RGB')
+    else:
+        actual_args = ['-d', deviceName,'--height', str(height),'--width', str(width)]
+        parser = cmdline.create_parser(description='luma.examples arguments')
+        args = parser.parse_args(actual_args)
+        if args.config:
+            # load config from file
+            config = cmdline.load_config(args.config)
+            args = parser.parse_args(config + actual_args)
+        # create device
+        try:
+            device = cmdline.create_device(args)
+        except error.Error as e:
+            parser.error(e)
     return device
 
 def GetCurrContrast(config):
@@ -59,46 +64,68 @@ def GetMPC(command):
     return process
 
 def GetWifiConn():
-    import os
-    WifiFile = "/proc/net/wireless"
     first = "black"
     second = "black"
     third = "black"
     fourth = "black"
     alternate = "black"
     try:
-        if os.path.exists(WifiFile):
-            WifiRateFile = open(WifiFile)
-            WifiRate = WifiRateFile.readlines()
-            WifiRateFile.close()
-            WifiRate = WifiRate[2].replace("   ", " ").replace("  "," ")
-            WifiRate = WifiRate.split(" ")
-            WifiRate = WifiRate[4].replace(".","")
-            if WifiRate[0:1] == "-":
-                WifiRate = 100 + float(WifiRate)
-            else:
-                WifiRate = float(WifiRate)
-            if WifiRate > 0:
-                first = "white"
-            if WifiRate > 40:
-                second = "white"
-            if WifiRate > 60:
-                third = "white"
-            if WifiRate > 80:
-                fourth = "white"
-        else:
-            alternate = "white"
+        WifiRate = get_wifi_quality()
+        if WifiRate > 0:
+            first = "white"
+        if WifiRate > 40:
+            second = "white"
+        if WifiRate > 60:
+            third = "white"
+        if WifiRate > 80:
+            fourth = "white"
     except:
         alternate = "white"
     return (first,second,third,fourth,alternate)
 
+
+def get_wifi_quality():
+    WifiRate = readWifiRateFile()
+    WifiRate = WifiRate[2].replace("   ", " ").replace("  ", " ")
+    WifiRate = WifiRate.split(" ")
+    WifiRate = WifiRate[4].replace(".", "")
+    if WifiRate[0:1] == "-":
+        WifiRate = 100 + float(WifiRate)
+    else:
+        WifiRate = float(WifiRate)
+    return WifiRate
+
+
+def readWifiRateFile():
+    '''
+    Format:
+    ['Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE',
+ ' face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22',
+ 'wlp1s0: 0000   53.  -57.  -256        0      0      0      3   1001        0']
+    :param WifiFile:
+    :return:
+    '''
+    WifiFile = "/proc/net/wireless"
+    WifiRateFile = open(WifiFile)
+    WifiRate = WifiRateFile.readlines()
+    WifiRateFile.close()
+    return WifiRate
+
+
+
 def GetSpecialInfos():
-    from subprocess import check_output
-    process = check_output("iwgetid".split())
-    process = process.decode()
-    wlan = process.split(":")[1].replace('"','').replace('\n','')
-    import netifaces as ni
-    ni.ifaddresses('wlan0')
-    ip = ni.ifaddresses('wlan0')[ni.AF_INET][0]['addr']
+    if platform.system() == 'Darwin':
+        import wifiinfo, socket
+        wifi = wifiinfo.getWifi('osx')
+        wlan = wifi.get('SSID')
+        ip = socket.gethostbyname(socket.gethostname())
+    else:
+        from subprocess import check_output
+        process = check_output("iwgetid".split())
+        process = process.decode()
+        wlan = process.split(":")[1].replace('"','').replace('\n','')
+        import netifaces as ni
+        ni.ifaddresses('wlan0')
+        ip = ni.ifaddresses('wlan0')[ni.AF_INET][0]['addr']
     return (wlan, ip)
 
