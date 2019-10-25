@@ -395,6 +395,7 @@ class PhonieBoxOledDisplay:
         if currContrast != oldContrast:
             self.device.contrast(currContrast)
             oldContrast = currContrast
+        return oldContrast
 
     def showSpecialInfo(self):
         specialInfos = GetSpecialInfos()
@@ -441,7 +442,7 @@ class PhonieBoxOledDisplay:
                 if self.showSpecialInfoMode():
                     self.showSpecialInfo()
                 else:
-                    self.check_and_update_contrast(oldContrast)
+                    oldContrast = self.check_and_update_contrast(oldContrast)
                     currMPC, mpcstatus, mpc_state, vol, volume, elapsed = self.read_mpc_status()
                     volume = int(volume.replace(" ", "").replace("%", ""))
                     self.check_and_display_play_status(mpc_state)
