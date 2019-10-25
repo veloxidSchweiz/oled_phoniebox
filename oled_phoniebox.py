@@ -61,6 +61,7 @@ class PhonieBoxOledDisplay:
         self.oldVol = "FirstStart"
         self.WifiConn = GetWifiConn()
         self.special = 0
+        self.cnt=0
         self.lenLine1 = -1
         self.lenLine2 = -1
         self.lenLine3 = -1
@@ -103,58 +104,6 @@ class PhonieBoxOledDisplay:
         seconds = int(seconds) % 5
         if seconds == 0:
             self.WifiConn = GetWifiConn()
-
-    def main(self, num_iterations=sys.maxsize):
-        oldContrast = GetCurrContrast(self.confFile)
-        self.device.contrast(oldContrast)
-        self.ShowImage("music")
-
-        while num_iterations > 0:
-            num_iterations -= 1
-            sleep(self.update_time)
-            self.check_wifi_connection()
-            try:
-                if self.showSpecialInfoMode():
-                    self.showSpecialInfo()
-                else:
-                    self.check_and_update_contrast(oldContrast)
-                    currMPC, mpcstatus, mpc_state, vol, volume, elapsed = self.read_mpc_status()
-                    volume = int(volume.replace(" ", "").replace("%", ""))
-                    self.check_and_display_play_status(mpc_state)
-                    self.check_and_display_volume(volume)
-                    if (mpc_state == "[playing]") or (mpc_state == "[paused]"):
-
-                        if currMPC != self.oldMPC:
-                            track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
-                                                                                                      "")  # SetCharacters(GetMPC("mpc -f %track% current"))
-                            if len(track.split("/")[1]) > 2:
-                                track = track.split("/")[0]
-                            if track == "\n":
-                                track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
-                                                                                                          "")  # .split("/")[0]
-                            file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
-                            if initVars['GENERAL']['mode'] == "full":
-                                track, txtLine1, txtLine2, txtLine3 = self.show_change_display(file, track)
-                        if initVars['GENERAL']['mode'] == "lite":
-                            elapsed, track, xpos, xpos_w = self.display_lite_mode(elapsed, file, mpc_state, mpcstatus,
-                                                                                  track, xpos, xpos_w)
-                        if initVars['GENERAL']['mode'] == "mix":
-                            elapsed, track, xpos, xpos_w = self.display_mixed_mode(elapsed, file, mpc_state, mpcstatus,
-                                                                                   track, vol, xpos, xpos_w)
-                        if initVars['GENERAL']['mode'] == "full":
-                            track = self.display_full_mode(currMPC, elapsed, file, mpc_state, mpcstatus, track,
-                                                           txtLine1, txtLine2, txtLine3, vol)
-                    else:
-                        self.oldMPC = currMPC
-                        if self.tmpcard < 3:
-                            sleep(0.5)
-                            self.tmpcard += 1
-                        else:
-                            self.ShowImage("cardhand")
-                            self.tmpcard = 0
-            except:
-                sleep(0.5)
-                self.ShowImage("music")
 
     def show_change_display(self, file, track):
         if file.startswith("http"):  # if it is a http stream!
@@ -199,31 +148,32 @@ class PhonieBoxOledDisplay:
                 self.lenLine3 = self.spaceJump
             if self.lenLine3 < 1:
                 self.lenLine3 = 0
-            cnt = 0
+            self.cnt = 0
         if self.linePos == 1:
-            if (cnt <= self.lenLine1 + self.spaceJump * 3) and (self.lenLine1 != 0):
-                self.subLine1 = cnt
+            if (self.cnt <= self.lenLine1 + self.spaceJump * 3) and (self.lenLine1 != 0):
+                self.subLine1 = self.cnt
                 self.subLine2 = 0
                 self.subLine3 = 0
             else:
                 self.linePos = 2
-                cnt = 0 - self.spaceJump
+                self.cnt = 0 - self.spaceJump
         elif self.linePos == 2:
-            if (cnt <= self.lenLine2 + self.spaceJump * 3) and (self.lenLine2 != 0):
+
+            if (self.cnt <= self.lenLine2 + self.spaceJump * 3) and (self.lenLine2 != 0):
                 self.subLine1 = 0
-                self.subLine2 = cnt
+                self.subLine2 = self.cnt
                 self.subLine3 = 0
             else:
                 self.linePos = 3
-                cnt = 0 - self.spaceJump
+                self.cnt = 0 - self.spaceJump
         elif self.linePos == 3:
-            if (cnt <= self.lenLine3 + self.spaceJump * 3) and (self.lenLine3 != 0):
+            if (self.cnt <= self.lenLine3 + self.spaceJump * 3) and (self.lenLine3 != 0):
                 self.subLine1 = 0
                 self.subLine2 = 0
-                self.subLine3 = cnt
+                self.subLine3 = self.cnt
             else:
                 self.linePos = 1
-                cnt = 0 - self.spaceJump
+                self.cnt = 0 - self.spaceJump
         if mpc_state != "[paused]":
             TimeLine = elapsed.split("/")
             if TimeLine[0] == "(0%)":
@@ -238,24 +188,8 @@ class PhonieBoxOledDisplay:
                 elapsed = "L" + elapsed
         else:
             elapsed = "PAUSE"
-        if not file.startswith("http"):
-            TimeLineP = int(
-                mpcstatus.split("\n")[1].replace("   ", " ").replace("  ", " ").split(" ")[3].replace("(", "").replace(
-                    "%)", ""))
-            TimeLineP = self.device.width * TimeLineP / 100
-        else:
-            TimeLineP = self.device.width
-        track = track.replace("\n", "")
-        if len(track) == 1:
-            track = "    " + track
-        if len(track) == 2:
-            track = "   " + track
-        if len(track) == 3:
-            track = "  " + track
-        if len(track) == 4:
-            track = " " + track
-        if len(track) == 5:
-            track = track
+        TimeLineP = self.get_relative_ellapsed_time(file, mpcstatus) * self.device.width
+        track = '{:>5}'.format(track.replace("\n", ""))
         with canvas(self.device) as draw:
             if not file.startswith("http"):
                 draw.line((39, self.line4 - 2, 39, self.device.height), fill="white")
@@ -265,10 +199,7 @@ class PhonieBoxOledDisplay:
             else:
                 draw.line((75, self.line4 - 2, self.device.width, self.line4 - 2), fill="white")
             draw.rectangle((0, 0, TimeLineP, 1), outline="white", fill="white")
-            draw.rectangle((109, self.line4 + 8, 111, self.line4 + 10), outline=self.WifiConn[0], fill=self.WifiConn[0])
-            draw.rectangle((114, self.line4 + 6, 116, self.line4 + 10), outline=self.WifiConn[1], fill=self.WifiConn[1])
-            draw.rectangle((119, self.line4 + 4, 121, self.line4 + 10), outline=self.WifiConn[2], fill=self.WifiConn[2])
-            draw.rectangle((124, self.line4 + 2, 126, self.line4 + 10), outline=self.WifiConn[3], fill=self.WifiConn[3])
+            self.show_wifi_connection(draw)
             draw.line((75, self.line4 - 2, 75, self.device.height), fill="white")
             draw.line((105, self.line4 - 2, 105, self.device.height), fill="white")
             draw.text((0 - self.subLine1, self.line1), txtLine1, font=font, fill="white")
@@ -277,8 +208,18 @@ class PhonieBoxOledDisplay:
             draw.text((78, self.line4), vol, font=font_small, fill="white")
             draw.text((108, self.line4), "---", font=font_small, fill=self.WifiConn[4])
             self.oldMPC = currMPC
-        cnt = cnt + self.spaceJump
+        self.cnt += self.spaceJump
         return track
+
+    def get_relative_ellapsed_time(self, file, mpcstatus):
+        if not file.startswith("http"):
+            TimeLineP = int(
+                mpcstatus.split("\n")[1].replace("   ", " ").replace("  ", " ").split(" ")[3].replace("(", "").replace(
+                    "%)", ""))
+            TimeLineP = TimeLineP / 100.
+        else:
+            TimeLineP = 1.
+        return TimeLineP
 
     def display_mixed_mode(self, elapsed, file, mpc_state, mpcstatus, track, vol, xpos, xpos_w):
         if mpc_state != "[paused]":
@@ -335,18 +276,14 @@ class PhonieBoxOledDisplay:
                 draw.line((75, self.line4 - 2, self.device.width, self.line4 - 2), fill="white")
                 draw.text((xpos_w, 4), track, font=font_wifi_mix, fill="white")
             draw.rectangle((0, 0, TimeLineP, 1), outline="white", fill="white")
-            draw.rectangle((109, self.line4 + 8, 111, self.line4 + 10), outline=self.WifiConn[0], fill=self.WifiConn[0])
-            draw.rectangle((114, self.line4 + 6, 116, self.line4 + 10), outline=self.WifiConn[1], fill=self.WifiConn[1])
-            draw.rectangle((119, self.line4 + 4, 121, self.line4 + 10), outline=self.WifiConn[2], fill=self.WifiConn[2])
-            draw.rectangle((124, self.line4 + 2, 126, self.line4 + 10), outline=self.WifiConn[3], fill=self.WifiConn[3])
+            self.show_wifi_connection(draw)
             draw.line((75, self.line4 - 2, 75, self.device.height), fill="white")
             draw.line((105, self.line4 - 2, 105, self.device.height), fill="white")
             draw.text((78, self.line4), vol, font=font_small, fill="white")
-            draw.text((108, self.line4), "---", font=font_small, fill=self.WifiConn[4])
             # draw.line((self.device.width/2, 0, self.device.width/2, self.device.height), fill="white")
         return elapsed, track, xpos, xpos_w
 
-    def display_lite_mode(self, elapsed, file, mpc_state, mpcstatus, track, xpos, xpos_w):
+    def display_lite_mode(self, elapsed, file, mpc_state, mpcstatus, track, xpos_w):
         if mpc_state != "[paused]":
             TimeLine = elapsed.split("/")
             if not file.startswith("http"):
@@ -362,6 +299,17 @@ class PhonieBoxOledDisplay:
             track = "X"
             xpos_w = self.device.width / 2 - 38
         track = track.split("/")[0]
+        xpos = self.get_xpos(track)
+        with canvas(self.device) as draw:
+            if not file.startswith("http"):
+                draw.text((xpos, 4), track, font=font_hightower, fill="white")
+            else:
+                draw.text((xpos_w, 4), track, font=font_wifi, fill="white")
+            draw.rectangle((0, 0, TimeLineP, 1), outline="white", fill="white")
+            self.show_wifi_connection(draw)
+        return elapsed, track, xpos, xpos_w
+
+    def get_xpos(self, track):
         if len(track) == 1:
             xpos = self.device.width / 2 - 15
         if len(track) == 2:
@@ -370,17 +318,16 @@ class PhonieBoxOledDisplay:
             xpos = self.device.width / 2 - 45
         if len(track) == 4:
             xpos = self.device.width / 2 - 60
-        with canvas(self.device) as draw:
-            if not file.startswith("http"):
-                draw.text((xpos, 4), track, font=font_hightower, fill="white")
-            else:
-                draw.text((xpos_w, 4), track, font=font_wifi, fill="white")
-            draw.rectangle((0, 0, TimeLineP, 1), outline="white", fill="white")
-            draw.rectangle((109, self.line4 + 8, 111, self.line4 + 10), outline=self.WifiConn[0], fill=self.WifiConn[0])
-            draw.rectangle((114, self.line4 + 6, 116, self.line4 + 10), outline=self.WifiConn[1], fill=self.WifiConn[1])
-            draw.rectangle((119, self.line4 + 4, 121, self.line4 + 10), outline=self.WifiConn[2], fill=self.WifiConn[2])
-            draw.rectangle((124, self.line4 + 2, 126, self.line4 + 10), outline=self.WifiConn[3], fill=self.WifiConn[3])
-        return elapsed, track, xpos, xpos_w
+        return xpos
+
+    def show_wifi_connection(self, draw):
+        if self.WifiConn[4] == 'white':
+            draw.text((108, self.line4), "---", font=font_small, fill=self.WifiConn[4])
+            return
+        draw.rectangle((109, self.line4 + 8, 111, self.line4 + 10), outline='white', fill=self.WifiConn[0])
+        draw.rectangle((114, self.line4 + 6, 116, self.line4 + 10), outline='white', fill=self.WifiConn[1])
+        draw.rectangle((119, self.line4 + 4, 121, self.line4 + 10), outline='white', fill=self.WifiConn[2])
+        draw.rectangle((124, self.line4 + 2, 126, self.line4 + 10), outline='white', fill=self.WifiConn[3])
 
     def check_and_display_volume(self, volume):
         if (self.oldVol != volume) and (self.oldVol != "FirstStart"):
@@ -481,6 +428,57 @@ class PhonieBoxOledDisplay:
     def showSpecialInfoMode(self):
         return (os.path.exists(tempFile)) or (self.special == 1)
 
+    def main(self, num_iterations=sys.maxsize):
+        oldContrast = GetCurrContrast(self.confFile)
+        self.device.contrast(oldContrast)
+        self.ShowImage("music")
+
+        while num_iterations > 0:
+            num_iterations -= 1
+            sleep(self.update_time)
+            self.check_wifi_connection()
+            try:
+                if self.showSpecialInfoMode():
+                    self.showSpecialInfo()
+                else:
+                    self.check_and_update_contrast(oldContrast)
+                    currMPC, mpcstatus, mpc_state, vol, volume, elapsed = self.read_mpc_status()
+                    volume = int(volume.replace(" ", "").replace("%", ""))
+                    self.check_and_display_play_status(mpc_state)
+                    self.check_and_display_volume(volume)
+                    if (mpc_state == "[playing]") or (mpc_state == "[paused]"):
+
+                        if currMPC != self.oldMPC:
+                            track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
+                                                                                                      "")  # SetCharacters(GetMPC("mpc -f %track% current"))
+                            if len(track.split("/")[1]) > 2:
+                                track = track.split("/")[0]
+                            if track == "\n":
+                                track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
+                                                                                                          "")  # .split("/")[0]
+                            file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
+                            if initVars['GENERAL']['mode'] == "full":
+                                track, txtLine1, txtLine2, txtLine3 = self.show_change_display(file, track)
+                        if initVars['GENERAL']['mode'] == "lite":
+                            elapsed, track, xpos, xpos_w = self.display_lite_mode(elapsed, file, mpc_state, mpcstatus,
+                                                                                  track, xpos_w)
+                        if initVars['GENERAL']['mode'] == "mix":
+                            elapsed, track, xpos, xpos_w = self.display_mixed_mode(elapsed, file, mpc_state, mpcstatus,
+                                                                                   track, vol, xpos, xpos_w)
+                        if initVars['GENERAL']['mode'] == "full":
+                            track = self.display_full_mode(currMPC, elapsed, file, mpc_state, mpcstatus, track,
+                                                           txtLine1, txtLine2, txtLine3, vol)
+                    else:
+                        self.oldMPC = currMPC
+                        if self.tmpcard < 3:
+                            sleep(0.5)
+                            self.tmpcard += 1
+                        else:
+                            self.ShowImage("cardhand")
+                            self.tmpcard = 0
+            except:
+                sleep(0.5)
+                self.ShowImage("music")
 
 if __name__ == "__main__":
     initVars = Init(confFile)
