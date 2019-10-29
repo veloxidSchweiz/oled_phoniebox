@@ -22,6 +22,11 @@ def mocked_display():
 def MockedGetSpecialInfos():
     return ('MyWlan', '192.168.123.123')
 
+@pytest.fixture
+@mock.patch('scripts.o4p_functions.GetMPC')
+def MockedGetMpcStatus(mockedGetMPC, mpc_status_ouput):
+    mockedGetMPC.return_value = mpc_status_ouput
+
 # @pytest.fixture(params=[128,64])
 @pytest.fixture(params=[64])
 def width(request):
@@ -62,8 +67,8 @@ class TestPhonieBoxOledDisplay():
         mocked_oled_display.showPauseSymbol(0)
         mocked_oled_display.device.image.show()
 
-    def test_read_mpc_status(self,mocked_oled_display):
-        print(mocked_oled_display.read_mpc_status())
+    # def test_read_mpc_status(self,mocked_oled_display):
+    #     print(mocked_oled_display.read_mpc_status())
 
     @pytest.mark.parametrize('file',
                              [('01_peter_fox_and_cold_steel_-_live_aus_berlin.mp3\n'),
@@ -135,6 +140,14 @@ class TestPhonieBoxOledDisplay():
             with canvas(mocked_oled_display.device) as draw:
                 mocked_oled_display.show_wifi_connection(draw)
             mocked_oled_display.device.image.show()
+
+
+    def test_read_mpc_status(self, mocked_oled_display,MockedGetMpcStatus):
+        print(mocked_oled_display.read_mpc_status())
+
+
+    def test_read_mpc_status(self, mocked_oled_display,MockedGetMpcStatus):
+        print(mocked_oled_display.read_mpc_status())
 
     @pytest.mark.parametrize("oldVol,newVol",
                              [(0,1),(1,0),(2,1),(0,100)])

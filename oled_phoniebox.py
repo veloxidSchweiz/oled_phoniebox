@@ -394,7 +394,10 @@ class PhonieBoxOledDisplay:
             draw.polygon(triangle, outline="white", fill="white")
         sleep(showTime)
 
-    def read_mpc_status(self):
+
+    def read_mpc_status(self, use_python_lib=False):
+        if use_python_lib:
+            return self.read_mpc_status_using_python_mpd2()
         mpcstatus = SetCharacters(GetMPC("mpc status"))
         mpc_state = mpcstatus.split("\n")[1].split(" ")[0]  # Split to see if mpc is playing at the moment
         currMPC = mpcstatus.split("\n")[0]
@@ -409,6 +412,7 @@ class PhonieBoxOledDisplay:
             elapsed = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[3]
         else:
             elapsed = None
+        volume = int(volume.replace(" ", "").replace("%", ""))
         return currMPC, mpcstatus, mpc_state, vol, volume, elapsed
 
     def check_and_update_contrast(self, oldContrast):
@@ -464,15 +468,14 @@ class PhonieBoxOledDisplay:
                     self.showSpecialInfo()
                 else:
                     oldContrast = self.check_and_update_contrast(oldContrast)
-                    currMPC, mpcstatus, mpc_state, vol, volume, elapsed = self.read_mpc_status()
-                    volume = int(volume.replace(" ", "").replace("%", ""))
+                    currMPC, mpcstatus, mpc_state, vol, volume, elapsed, track = self.read_mpc_status()
                     self.check_and_display_play_status(mpc_state)
                     self.check_and_display_volume(volume)
                     if (mpc_state == "[playing]") or (mpc_state == "[paused]"):
 
                         if currMPC != self.oldMPC:
                             track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
-                                                                                                      "")  # SetCharacters(GetMPC("mpc -f %track% current"))
+                                                                                                      "")
                             if len(track.split("/")[1]) > 2:
                                 track = track.split("/")[0]
                             if track == "\n":
