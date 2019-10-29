@@ -3,4 +3,4 @@ pytest
 mock
 luma.oled
 netifaces
-python-mpd2
+python-mpd2import

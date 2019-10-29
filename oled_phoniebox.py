@@ -332,16 +332,37 @@ class PhonieBoxOledDisplay:
     def check_and_display_volume(self, volume):
         if (self.oldVol != volume) and (self.oldVol != "FirstStart"):
             with canvas(self.device) as draw:
-                draw.rectangle((30, 22, 45, 42), outline="white", fill="white")
-                draw.polygon([(45, 22), (60, 10), (60, 54), (45, 42)], outline="white", fill="white")
+                self.draw_loudspeaker(draw)
                 if volume != 0:
-                    draw.rectangle((75, 28, 105, 36), outline="white", fill="white")
+                    rectangle = (11 + self.device.width // 2,
+                                  -4 + self.device.height // 2,
+                                  41 + self.device.width // 2,
+                                   4 + self.device.height // 2)
+                    draw.rectangle(rectangle, outline="white", fill="white")
                     if self.oldVol < volume:
-                        draw.rectangle((86, 17, 94, 47), outline="white", fill="white")
+                        rectangle = (22 + self.device.width // 2,
+                                     -15 + self.device.height // 2,
+                                     30 + self.device.width // 2,
+                                     15 + self.device.height // 2)
+                        draw.rectangle(rectangle, outline="white", fill="white")
                 else:
-                    draw.text((75, 2), "X", font=font_hightower, fill="white")
+                    pos = (11 + self.device.width // 2,
+                           -30 + self.device.height // 2)
+                    draw.text(pos, "X", font=font_hightower, fill="white")
             sleep(self.displayTime)
         self.oldVol = volume
+
+    def draw_loudspeaker(self, draw):
+        rectangle = (-34 + self.device.width // 2, -10 + self.device.height // 2,
+                     -19 + self.device.width // 2, 10 + self.device.height // 2)
+        polygon = [
+            (-19 + self.device.width // 2, -10 + self.device.height // 2),
+            (-4 + self.device.width // 2, -22 + self.device.height // 2),
+            (-4 + self.device.width // 2, 22 + self.device.height // 2),
+            (-19 + self.device.width // 2, 10 + self.device.height // 2)
+        ]
+        draw.rectangle(rectangle, outline="white", fill="white")
+        draw.polygon(polygon, outline="white", fill="white")
 
     def check_and_display_play_status(self, playing):
         if self.oldPlaying != playing:

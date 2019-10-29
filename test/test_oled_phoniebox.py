@@ -135,3 +135,17 @@ class TestPhonieBoxOledDisplay():
             with canvas(mocked_oled_display.device) as draw:
                 mocked_oled_display.show_wifi_connection(draw)
             mocked_oled_display.device.image.show()
+
+    @pytest.mark.parametrize("oldVol,newVol",
+                             [(0,1),(1,0),(2,1),(0,100)])
+    def test_check_and_display_volume(self, oldVol,newVol, mocked_oled_display):
+        mocked_oled_display.oldVol = oldVol
+        mocked_oled_display.check_and_display_volume(newVol)
+        mocked_oled_display.device.image.show()
+
+
+    @pytest.mark.parametrize("status",
+                             [('[playing]'),'[paused]'])
+    def test_check_and_display_play_status(self, status, mocked_oled_display):
+        mocked_oled_display.check_and_display_play_status(status)
+        mocked_oled_display.device.image.show()
