@@ -75,7 +75,7 @@ class TestPhonieBoxOledDisplay():
                               ('http://www.das_ist.ein/stream.mp3')])
     def test_display_lite_mode(self, mocked_oled_display, file):
         currMPC, mpcstatus, mpc_state, vol, volume, elapsed = mocked_oled_display.read_mpc_status()
-        file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
+        file = self.get_current_file()  # Get the current title
         track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#","")
         mocked_oled_display.WifiConn =('white', 'white', 'black', 'black', 'black')
         mocked_oled_display.display_lite_mode(elapsed, file, mpc_state, mpcstatus, track, 0)
@@ -87,7 +87,7 @@ class TestPhonieBoxOledDisplay():
     def test_display_mixed_mode(self,mocked_oled_display, file):
 
         currMPC, mpcstatus, mpc_state, vol, volume, elapsed = mocked_oled_display.read_mpc_status()
-        file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
+        file = self.get_current_file()  # Get the current title
         track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#","")
         mocked_oled_display.WifiConn =('white', 'white', 'black', 'black', 'black')
         #                        elapsed, file, mpc_state, mpcstatus, track, vol, xpos, xpos_w)
@@ -99,15 +99,15 @@ class TestPhonieBoxOledDisplay():
                               # ('http://www.das_ist.ein/stream.mp3')])
     def test_display_full_mode(self,mocked_oled_display, file):
         for i in range(19):
-            currMPC, mpcstatus, mpc_state, vol, volume, elapsed = mocked_oled_display.read_mpc_status()
-            file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
-            track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#","")
+            currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info = mocked_oled_display.read_mpc_status()
+            file = mpd_info['file']  # Get the current title
+            track = f"{mpd_info['track']}/{mpd_info['playlistlength']}"
             mocked_oled_display.WifiConn =('white', 'white', 'black', 'black', 'white')
-            txtLine1 = SetCharacters(GetMPC("mpc -f %album% current"))
-            txtLine3 = SetCharacters(GetMPC("mpc -f %title% current"))
-            txtLine2 = SetCharacters(GetMPC("mpc -f %artist% current"))
+            txtLine1 = mpd_info['album']
+            txtLine3 =mpd_info['title']
+            txtLine2 = mpd_info['artist']
             if txtLine2 == "\n":
-                filename = SetCharacters(GetMPC("mpc -f %file% current"))
+                filename = self.get_current_file()
                 filename = filename.split(":")[2]
                 filename = SetCharacters(filename)
                 localfile = filename.split("/")
@@ -115,8 +115,20 @@ class TestPhonieBoxOledDisplay():
                 txtLine2 = localfile[0]
             #                        elapsed, file, mpc_state, mpcstatus, track, vol, xpos, xpos_w)
 
-            mocked_oled_display.display_full_mode(currMPC, elapsed, file, mpc_state, mpcstatus, track, txtLine1, txtLine2, txtLine3, vol)
+            mocked_oled_display.display_full_mode(currMPC, elapsed, file, mpc_state, mpcstatus, track, txtLine1, txtLine2, txtLine3, vol, mpd_info)
             mocked_oled_display.device.image.show()
+
+    def get_current_file(self):
+        return SetCharacters(GetMPC("mpc -f %file% current"))
+
+    def get_current_album(self):
+        return SetCharacters(GetMPC("mpc -f %album% current"))
+
+    def get_current_title(self):
+        return SetCharacters(GetMPC("mpc -f %title% current"))
+
+    def get_current_artist(self):
+        return SetCharacters(GetMPC("mpc -f %artist% current"))
 
     @pytest.mark.parametrize('quality, expected',
                              [
@@ -158,7 +170,7 @@ class TestPhonieBoxOledDisplay():
 
 
     @pytest.mark.parametrize("status",
-                             [('[playing]'),'[paused]'])
+                             [('play'),'pause'])
     def test_check_and_display_play_status(self, status, mocked_oled_display):
         mocked_oled_display.check_and_display_play_status(status)
         mocked_oled_display.device.image.show()

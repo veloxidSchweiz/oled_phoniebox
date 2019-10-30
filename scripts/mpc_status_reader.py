@@ -1,5 +1,6 @@
 from mpd import MPDClient
 import queue
+from collections import deque
 
 def with_connection(func):
     def wrapper(*args):
@@ -19,7 +20,7 @@ class MPCStatusReader():
         self.host ='localhost'
         self.port = 6600
         self.connect()
-        self.messages = queue.Queue()
+        self.messages = deque()
 
     def connect(self):
         self.client.connect(self.host, self.port)
@@ -47,9 +48,8 @@ class MPCStatusReader():
 
     @with_connection
     def readmessages(self):
-        list(map(self.messages.put, self.client.readmessages()))
+        return list(map(self.messages.put, self.client.readmessages()))
 
-        return
 
     def has_messages(self):
         self.messages.extend(self.readmessages())

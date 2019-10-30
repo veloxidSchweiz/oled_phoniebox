@@ -11,6 +11,7 @@ class TestMPCStatusReader:
     @pytest.mark.skipif(True, reason='ignore')
     def test_init(self):
         MPCStatusReader()
+
     @pytest.mark.skipif(True, reason='ignore')
     def test_get_status(self, status_reader):
         print(status_reader.get_status())
