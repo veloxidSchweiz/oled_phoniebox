@@ -4,3 +4,4 @@ mock
 luma.oled
 netifaces
 python-mpd2import
+wifiinfo

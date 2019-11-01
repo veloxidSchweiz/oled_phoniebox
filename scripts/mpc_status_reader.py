@@ -44,16 +44,27 @@ class MPCStatusReader():
     def get_info(self):
         status = self.get_currentsong()
         status.update(self.get_status())
+        status['playlisttrack'] = f"{status.get('song','-')}/{status['playlistlength']}"
+        if status.get('file','').startswith("http"):
+            status['rel_elapsed_time'] = 1.0
+            status['song_description'] = f'{status.get("title")}'
+        else:
+            status['rel_elapsed_time'] = round(float(status.get('elapsed',0))/float(status.get('duration',1)),2)
+            status['song_description'] = f"{status.get('artist')} - {status.get('title')}"
+
         return status
 
     @with_connection
     def readmessages(self):
-        return list(map(self.messages.put, self.client.readmessages()))
-
+        new_messages = self.client.readmessages()
+        self.messages.extend(new_messages)
+        return len(new_messages)
 
     def has_messages(self):
-        self.messages.extend(self.readmessages())
+        self.readmessages()
         return len(self.messages) > 0
 
     def get_message(self):
-        msg = self.message.get()
+        if len(self.messages):
+            return self.messages.popleft()
+        return None

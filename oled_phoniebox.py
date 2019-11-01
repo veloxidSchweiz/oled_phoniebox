@@ -8,10 +8,11 @@ import sys
 import logging
 import atexit
 
+from scripts import draw_functions
 from scripts.mpc_status_reader import MPCStatusReader
 
 sys.path.append("/home/pi/oled_phoniebox/scripts/")
-from scripts.o4p_functions import Init, get_device, GetCurrContrast, SetCharacters, GetMPC, GetWifiConn, \
+from scripts.o4p_functions import Init, get_device, GetCurrContrast, SetCharacters, GetWifiConn, \
     GetSpecialInfos, SetNewMode
 from time import sleep
 import datetime
@@ -95,15 +96,7 @@ class PhonieBoxOledDisplay:
     def ShowImage(self, imgname):
         logger.info(f'ShowImage {imgname}')
         img_path = os.path.abspath(os.path.join(image_dir, imgname + '.png'))
-        # logger.info(f'ShowImage {img_path}')
-        logo = Image.open(img_path).convert("RGBA")
-        fff = Image.new(logo.mode, logo.size, (255,) * 4)
-        background = Image.new("RGBA", self.device.size, "black")
-        posn = ((self.device.width - logo.width) // 2, 0)
-        img = Image.composite(logo, fff, logo)
-        background.paste(img, posn)
-        self.device.display(background.convert(self.device.mode))
-
+        draw_functions.showImage(self.device, img_path)
         logger.info(f'Showing Image {imgname}')
 
     def check_wifi_connection(self):
@@ -113,10 +106,10 @@ class PhonieBoxOledDisplay:
         if seconds == 0:
             self.WifiConn = GetWifiConn()
 
-    def show_change_display(self, file, track):
+    def show_change_display(self, file, track, mpd_info):
         if file.startswith("http"):  # if it is a http stream!
-            txtLine1 = SetCharacters(GetMPC("mpc -f %name% current"))
-            txtLine2 = SetCharacters(GetMPC("mpc -f %title% current"))
+            txtLine1 = mpd_info['name']
+            txtLine2 = mpd_info['title']
             txtLine3 = ""
             track = "--/--"
         else:  # if it is not a stream
@@ -127,11 +120,11 @@ class PhonieBoxOledDisplay:
             self.subLine2 = 0
             self.subLine3 = 0
             self.linePos = 1
-            txtLine1 = SetCharacters(GetMPC("mpc -f %album% current"))
-            txtLine3 = SetCharacters(GetMPC("mpc -f %title% current"))
-            txtLine2 = SetCharacters(GetMPC("mpc -f %artist% current"))
+            txtLine1 = mpd_info['album']
+            txtLine3 = mpd_info['title']
+            txtLine2 = mpd_info['artist']
         if txtLine2 == "\n":
-            filename = SetCharacters(GetMPC("mpc -f %file% current"))
+            filename = mpd_info['file']
             filename = filename.split(":")[2]
             filename = SetCharacters(filename)
             localfile = filename.split("/")
@@ -139,7 +132,7 @@ class PhonieBoxOledDisplay:
             txtLine2 = localfile[0]
         return track, txtLine1, txtLine2, txtLine3
 
-    def display_full_mode(self, currMPC, elapsed, file, mpc_state, mpcstatus, track, txtLine1, txtLine2, txtLine3, vol, mpd_info):
+    def display_full_mode(self, txtLine1, txtLine2, txtLine3, vol, mpd_info):
         if self.lenLine1 == -1:
             self.lenLine1 = (len(txtLine1) * self.widthLetter) - self.device.width
             if self.lenLine1 > 0 and self.lenLine1 < self.spaceJump:
@@ -182,20 +175,14 @@ class PhonieBoxOledDisplay:
             else:
                 self.linePos = 1
                 self.cnt = 0 - self.spaceJump
+        mpc_state = mpd_info['state']
         if mpc_state != "pause":
-            TimeLine = elapsed.split("/")
-            if TimeLine[0] == "(0%)":
-                elapsed = "-:--"
-            elif TimeLine[1] != "0:00":
-                elapsed = TimeLine[1]
-            else:
-                elapsed = "-:--"
-            elapsed = f'L{elapsed:>5}'
+            elapsed = f'L{mpd_info.get("elapsed"):>5}'
         else:
             elapsed = "PAUSE"
-        rel_elapsed_time = round(float(mpd_info['elapsed'])/float(mpd_info['duration']),2)
-        TimeLineP = rel_elapsed_time * self.device.width
-        track = '{:>5}'.format(track.replace("\n", ""))
+        file = mpd_info['file']
+        TimeLineP = mpd_info['rel_elapsed_time'] * self.device.width
+        track = f'{mpd_info.get("playlisttrack"):>5}'
         with canvas(self.device) as draw:
             if not file.startswith("http"):
                 draw.line((39, self.line4 - 2, 39, self.device.height), fill="white")
@@ -213,7 +200,7 @@ class PhonieBoxOledDisplay:
             draw.text((0 - self.subLine3, self.line3), txtLine3, font=font, fill="white")
             draw.text((78, self.line4), vol, font=font_small, fill="white")
             draw.text((108, self.line4), "---", font=font_small, fill=self.WifiConn[4])
-            self.oldMPC = currMPC
+            self.oldMPC = mpd_info['song_description']
         self.cnt += self.spaceJump
         return track
 
@@ -380,6 +367,7 @@ class PhonieBoxOledDisplay:
             self.oldPlaying = playing
 
     def showPauseSymbol(self, showTime):
+        logger.info('ShowPauseSymbol')
         with canvas(self.device) as draw:
             rectangle1 = (-13 + self.device.width // 2,
                           -22 + self.device.height // 2,
@@ -394,6 +382,7 @@ class PhonieBoxOledDisplay:
         sleep(showTime)
 
     def showPlaySymbol(self, showTime):
+        logger.info('ShowPlayymbol')
         with canvas(self.device) as draw:
             triangle = [(-19, - 24), (25, 0), (-19, 24)]
             triangle = [(x[0] + self.device.width // 2, x[1] + self.device.height // 2) for x in triangle]
@@ -406,18 +395,13 @@ class PhonieBoxOledDisplay:
             return self.read_mpc_status_using_python_mpd2()
         with MPCStatusReader() as client:
             mpd_info = client.get_info()
-        mpcstatus = SetCharacters(GetMPC("mpc status"))
+        mpcstatus = mpd_info['state']
         mpc_state=mpd_info.get('state')
-        currMPC ='{} - {}'.format(mpd_info.get('artist'), mpd_info.get('title'))
+        currMPC = mpd_info['song_description']
         vol = 'V {}'.format(mpd_info['volume'])
         volume = int(mpd_info['volume'])
-        duration =  '{:01d}:{:02d}'.format(*get_duration(float(mpd_info.get('duration','0'))))
-        elapsed = '{:01d}:{:02d}'.format(*get_duration(float(mpd_info['elapsed'])))
-        # if mpc_state == "play":
-        #     # timer = SetCharacters(GetMPC("mpc -f %time% current"))
-        #     elapsed = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[3]
-        # else:
-        #     elapsed = None
+        duration = '{:01d}:{:02d}'.format(*get_duration(float(mpd_info.get('duration','0'))))
+        elapsed = '{:01d}:{:02d}'.format(*get_duration(float(mpd_info.get('elapsed','0'))))
         elapsed = f'{elapsed}/{duration}'
         return currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info
 
@@ -438,6 +422,7 @@ class PhonieBoxOledDisplay:
         return oldContrast
 
     def showSpecialInfo(self):
+        logger.info('showSpecialInfo')
         specialInfos = GetSpecialInfos()
         if self.special == 0:
             self.special = 1
@@ -488,7 +473,7 @@ class PhonieBoxOledDisplay:
                     self.check_and_display_volume(volume)
                     if (mpc_state == "play") or (mpc_state == "pause"):
 
-                        if currMPC != self.oldMPC:
+                        if mpc_state['song_description'] != self.oldMPC:
                             track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
                                                                                                       "")
                             if len(track.split("/")[1]) > 2:
@@ -496,20 +481,19 @@ class PhonieBoxOledDisplay:
                             if track == "\n":
                                 track = mpcstatus.split("\n")[1].replace("  ", " ").split(" ")[1].replace("#",
                                                                                                           "")  # .split("/")[0]
-                            file = SetCharacters(GetMPC("mpc -f %file% current"))  # Get the current title
+                            file = mpd_info['file']
                             if initVars['GENERAL']['mode'] == "full":
-                                track, txtLine1, txtLine2, txtLine3 = self.show_change_display(file, track)
+                                track, txtLine1, txtLine2, txtLine3 = self.show_change_display(file, track, mpd_info)
                         if initVars['GENERAL']['mode'] == "lite":
                             elapsed, track, xpos, xpos_w = self.display_lite_mode(elapsed, file, mpc_state, mpcstatus,
-                                                                                  track, xpos_w)
+                                                                                  track, xpos_w,mpd_info)
                         if initVars['GENERAL']['mode'] == "mix":
                             elapsed, track, xpos, xpos_w = self.display_mixed_mode(elapsed, file, mpc_state, mpcstatus,
-                                                                                   track, vol, xpos, xpos_w)
+                                                                                   track, vol, xpos, xpos_w, mpd_info)
                         if initVars['GENERAL']['mode'] == "full":
-                            track = self.display_full_mode(currMPC, elapsed, file, mpc_state, mpcstatus, track,
-                                                           txtLine1, txtLine2, txtLine3, vol, mpd_info)
+                            track = self.display_full_mode(txtLine1, txtLine2, txtLine3, vol, mpd_info)
                     else:
-                        self.oldMPC = currMPC
+                        self.oldMPC = mpd_info['song_description']
                         if self.tmpcard < 3:
                             sleep(0.5)
                             self.tmpcard += 1

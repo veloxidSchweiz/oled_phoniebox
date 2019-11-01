@@ -33,5 +33,3 @@ def test_get_device():
     device = get_device(deviceName='dummy',width = width)
     assert isinstance(device,luma_dummy_device)
     assert device.width == width
-
-def test
