@@ -96,6 +96,6 @@ mpc_status_mp3_stopped = {
     mpc_status_mp3_paused,
     mpc_status_mp3_stopped
 ], ids=['http_stream', 'playing', 'pause', 'stop'])
-def mpc_status(request):
+def mpc_status_mock(request):
     return request.param
 

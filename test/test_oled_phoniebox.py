@@ -5,7 +5,7 @@ from luma.core.render import canvas
 
 from oled_phoniebox import PhonieBoxOledDisplay
 
-show_images = True
+show_images = False
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def MockedGetMpcStatus(mockedGetMPC, mpc_status_ouput):
     mockedGetMPC.return_value = mpc_status_ouput
 
 
-@pytest.fixture(params=[128,64])
+@pytest.fixture(params=[128, 64])
 # @pytest.fixture(params=[64])
 def width(request):
     return request.param
@@ -36,9 +36,17 @@ def width(request):
 
 @pytest.fixture
 @mock.patch('scripts.o4p_functions', side_effect=MockedGetSpecialInfos)
-def mocked_oled_display(mocked_info, width, mocked_display):
+def oled_display(mocked_info, width, mocked_display):
     mocked_info.GetSpecialInfos.side_effect = MockedGetSpecialInfos
     return PhonieBoxOledDisplay(luma_device.dummy(width=128, height=128, rotate=0, mode='1'))
+
+
+@pytest.fixture
+def mocked_oled_display(oled_display, mpc_status_mock):
+    with mock.patch('oled_phoniebox.MPCStatusReader.read_info_from_mpd') as \
+            mocked_mpd_status_reader:
+        mocked_mpd_status_reader.return_value = mpc_status_mock
+        return oled_display
 
 
 # @mock.patch('scripts.o4p_functions', side_effect=MockedGetSpecialInfos)
@@ -51,28 +59,25 @@ class TestPhonieBoxOledDisplay():
         mocked_oled_display = PhonieBoxOledDisplay(mocked_display)
 
     @pytest.mark.parametrize('image_name', [('music'), ('cardhand'), ('poweroff')])
-    def test_ShowImage(self, mocked_oled_display, image_name, ):
-        mocked_oled_display.ShowImage(image_name)
+    def test_ShowImage(self, oled_display, image_name, ):
+        oled_display.ShowImage(image_name)
 
-    def test_showSpecialInfo(self, mocked_oled_display):
-        mocked_oled_display.special = 1
-        mocked_oled_display.showSpecialInfo()
+    def test_showSpecialInfo(self, oled_display):
+        oled_display.special = 1
+        oled_display.showSpecialInfo()
         mocked_oled_display
 
     # @pytest.mark.skip
-    def test_main(self, mocked_oled_display):
-        mocked_oled_display.main(num_iterations=5)
+    def test_main(self, oled_display):
+        oled_display.main(num_iterations=5)
 
-    def test_showPlaySymbol(self, mocked_oled_display):
-        mocked_oled_display.showPlaySymbol(0)
+    def test_showPlaySymbol(self, oled_display):
+        oled_display.showPlaySymbol(0)
 
-    def test_showPauseSymbol(self, mocked_oled_display):
-        mocked_oled_display.showPauseSymbol(0)
+    def test_showPauseSymbol(self, oled_display):
+        oled_display.showPauseSymbol(0)
         if show_images:
-            mocked_oled_display.device.image.show()
-
-    # def test_read_mpc_status(self,mocked_oled_display):
-    #     print(mocked_oled_display.read_mpc_status())
+            oled_display.device.image.show()
 
     @pytest.mark.parametrize('file',
                              [('01_peter_fox_and_cold_steel_-_live_aus_berlin.mp3\n'),
@@ -92,7 +97,7 @@ class TestPhonieBoxOledDisplay():
     def test_display_mixed_mode(self, mocked_oled_display, file):
 
         currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info = mocked_oled_display.read_mpc_status()
-        file = mpd_info['file']   # Get the current title
+        file = mpd_info['file']  # Get the current title
         track = mpd_info['playlisttrack']
 
         mocked_oled_display.WifiConn = ('white', 'white', 'black', 'black', 'black')
@@ -108,9 +113,9 @@ class TestPhonieBoxOledDisplay():
         for i in range(19):
             currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info = mocked_oled_display.read_mpc_status()
             mocked_oled_display.WifiConn = ('white', 'white', 'black', 'black', 'white')
-            txtLine1 = mpd_info.get('album','')
+            txtLine1 = mpd_info.get('album', '')
             txtLine3 = mpd_info['title']
-            txtLine2 = mpd_info.get('artist',mpd_info.get('name',''))
+            txtLine2 = mpd_info.get('artist', mpd_info.get('name', ''))
             if txtLine2 == "\n":
                 filename = mpd_info['file']
                 localfile = filename.split("/")
@@ -139,30 +144,38 @@ class TestPhonieBoxOledDisplay():
                                  (100, ('white', 'white', 'white', 'white', 'black')),
                                  (110, ('white', 'white', 'white', 'white', 'black')),
                                  ('a', ('black', 'black', 'black', 'black', 'white'))])
-    def test_show_wifi_connection(self, quality, expected, mocked_oled_display):
-        mocked_oled_display.WifiConn = expected
-        with canvas(mocked_oled_display.device) as draw:
-            mocked_oled_display.show_wifi_connection(draw)
+    def test_show_wifi_connection(self, quality, expected, oled_display):
+        oled_display.WifiConn = expected
+        with canvas(oled_display.device) as draw:
+            oled_display.show_wifi_connection(draw)
         if show_images:
-            mocked_oled_display.device.image.show()
-
-    def test_read_mpc_status(self, mocked_oled_display, MockedGetMpcStatus):
-        print(mocked_oled_display.read_mpc_status())
-
-    def test_read_mpc_status(self, mocked_oled_display, MockedGetMpcStatus):
-        print(mocked_oled_display.read_mpc_status())
+            oled_display.device.image.show()
 
     @pytest.mark.parametrize("oldVol,newVol",
                              [(0, 1), (1, 0), (2, 1), (0, 100)])
-    def test_check_and_display_volume(self, oldVol, newVol, mocked_oled_display):
-        mocked_oled_display.oldVol = oldVol
-        mocked_oled_display.check_and_display_volume(newVol)
+    def test_check_and_display_volume(self, oldVol, newVol, oled_display):
+        oled_display.oldVol = oldVol
+        oled_display.check_and_display_volume(newVol)
         if show_images:
-            mocked_oled_display.device.image.show()
+            oled_display.device.image.show()
 
     @pytest.mark.parametrize("status",
                              [('play'), 'pause'])
-    def test_check_and_display_play_status(self, status, mocked_oled_display):
-        mocked_oled_display.check_and_display_play_status(status)
+    def test_check_and_display_play_status(self, status, oled_display):
+        oled_display.check_and_display_play_status(status)
         if show_images:
-            mocked_oled_display.device.image.show()
+            oled_display.device.image.show()
+
+    def test_show_change_display(self, mocked_oled_display, mpc_status_mock):
+        currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info = mocked_oled_display.read_mpc_status()
+        track, txtLine1, txtLine2, txtLine3 = mocked_oled_display.show_change_display(mpd_info)
+        vol = 'V100'
+        for i in range(10):
+            mocked_oled_display.display_full_mode(txtLine1, txtLine2, txtLine3, vol, mpd_info)
+
+    def test_drawSpecialInfo(self, oled_display):
+        specialInfo = ['TestWlan', '123.456.789.000']
+        for i in range(10):
+            oled_display.timetoshow = i
+            oled_display.drawSpecialInfo(specialInfos=specialInfo)
+            # oled_display.device.image.show()
