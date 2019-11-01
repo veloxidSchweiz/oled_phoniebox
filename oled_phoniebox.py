@@ -94,8 +94,12 @@ class PhonieBoxOledDisplay:
 
     def ShowImage(self, imgname):
         logger.info(f'ShowImage {imgname}')
-        img_path = os.path.abspath(os.path.join(image_dir, imgname + '.png'))
-        draw_functions.drawImage(self.device, img_path)
+        if imgname.startswith('cover'):
+            img_path = os.path.abspath(os.path.join(image_dir, imgname + '.jpg'))
+            draw_functions.drawCover(self.device, img_path)
+        else:
+            img_path = os.path.abspath(os.path.join(image_dir, imgname + '.png'))
+            draw_functions.drawImage(self.device, img_path)
         logger.info(f'Showing Image {imgname}')
 
     def check_wifi_connection(self):

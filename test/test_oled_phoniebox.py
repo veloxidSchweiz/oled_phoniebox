@@ -58,14 +58,15 @@ class TestPhonieBoxOledDisplay():
     def test_init(self, mocked_display):
         mocked_oled_display = PhonieBoxOledDisplay(mocked_display)
 
-    @pytest.mark.parametrize('image_name', [('music'), ('cardhand'), ('poweroff')])
+    @pytest.mark.parametrize('image_name', [('music'), ('cardhand'), ('poweroff'),('cover')])
     def test_ShowImage(self, oled_display, image_name, ):
         oled_display.ShowImage(image_name)
+        oled_display.device.image.show()
 
     def test_showSpecialInfo(self, oled_display):
         oled_display.special = 1
         oled_display.showSpecialInfo()
-        mocked_oled_display
+
 
     # @pytest.mark.skip
     def test_main(self, oled_display):

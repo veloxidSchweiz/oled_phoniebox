@@ -24,7 +24,20 @@ def drawImage(device, img_path):
     logo = Image.open(img_path).convert("RGBA")
     fff = Image.new(logo.mode, logo.size, (255,) * 4)
     background = Image.new("RGBA", device.size, "black")
-    posn = ((device.width - logo.width) // 2, 0)
+    posn = ((device.width - logo.width) // 2, (device.height - logo.height) // 2)
     img = Image.composite(logo, fff, logo)
     background.paste(img, posn)
+    device.display(background.convert(device.mode))
+
+def drawCover(device, img_path):
+    # basewidth = device.width
+    cover = Image.open(img_path).convert("RGBA")
+    # background = Image.new("RGBA", device.size, "black")
+    # wpercent = (basewidth / float(cover.size[0]))
+    # hsize = int((float(cover.size[1]) * float(wpercent)))
+    # cover = cover.resize((basewidth, hsize), Image.ANTIALIAS)
+    cover.thumbnail(device.size, Image.ANTIALIAS)
+    background = Image.new("RGBA", device.size, "black")
+    posn = ((device.width - cover.width) // 2, (device.height - cover.height) // 2)
+    background.paste(cover, posn)
     device.display(background.convert(device.mode))
