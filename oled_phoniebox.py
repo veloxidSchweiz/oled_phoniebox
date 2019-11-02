@@ -56,6 +56,7 @@ def get_duration(duration_in_seconds):
 class PhonieBoxOledDisplay:
     def __init__(self, device):
         self.device = device
+        self.mpc_client = MPCStatusReader()
         self.tmpcard = 3
         self.linePos = 1
         self.subLine1 = 0
@@ -93,16 +94,16 @@ class PhonieBoxOledDisplay:
         logger.info('cleanup done')
 
     def ShowImage(self, imgname):
-        logger.info(f'ShowImage {imgname}')
+        logger.debug(f'ShowImage {imgname}')
         if imgname.startswith('cover'):
             img_path = os.path.abspath(os.path.join(image_dir, imgname + '.jpg'))
             draw_functions.drawCover(self.device, img_path)
         else:
             img_path = os.path.abspath(os.path.join(image_dir, imgname + '.png'))
             draw_functions.drawImage(self.device, img_path)
-        logger.info(f'Showing Image {imgname}')
 
     def check_wifi_connection(self):
+        logger.debug(f'Check WifiConnection')
         curr_time = datetime.datetime.now()
         seconds = curr_time.strftime('%S')
         seconds = int(seconds) % 5
@@ -110,6 +111,7 @@ class PhonieBoxOledDisplay:
             self.WifiConn = GetWifiConn()
 
     def show_change_display(self, mpd_info):
+        logger.debug(f'ShowChangeDisplay')
         file = mpd_info['file']
         track = f'{mpd_info.get("playlisttrack"):>5}'
         if file.startswith("http"):  # if it is a http stream!
@@ -138,6 +140,7 @@ class PhonieBoxOledDisplay:
         return track, txtLine1, txtLine2, txtLine3
 
     def display_full_mode(self, txtLine1, txtLine2, txtLine3, vol, mpd_info):
+        logger.debug(f'Display Full Mode')
         if self.lenLine1 == -1:
             self.lenLine1 = (len(txtLine1) * self.widthLetter) - self.device.width
             if self.lenLine1 > 0 and self.lenLine1 < self.spaceJump:
@@ -182,7 +185,7 @@ class PhonieBoxOledDisplay:
                 self.cnt = 0 - self.spaceJump
         mpc_state = mpd_info['state']
         if mpc_state != "pause":
-            elapsed = f'L{mpd_info.get("elapsed"):>5}'
+            elapsed = f'L{mpd_info["elapsed_as_time"]:>5}'
         else:
             elapsed = "PAUSE"
         file = mpd_info['file']
@@ -220,6 +223,7 @@ class PhonieBoxOledDisplay:
         return TimeLineP
 
     def display_mixed_mode(self, elapsed, file, mpc_state, mpcstatus, track, vol, xpos, xpos_w):
+        logger.debug(f'Display Mixed Mode')
         if mpc_state != "pause":
             TimeLine = elapsed.split("/")
             if TimeLine[0] == "(0%)":
@@ -282,6 +286,7 @@ class PhonieBoxOledDisplay:
         return elapsed, track, xpos, xpos_w
 
     def display_lite_mode(self, elapsed, file, mpc_state, mpcstatus, track, xpos_w):
+        logger.debug(f'Display Lite Mode')
         if mpc_state != "pause":
             TimeLine = elapsed.split("/")
             if not file.startswith("http"):
@@ -328,6 +333,7 @@ class PhonieBoxOledDisplay:
         draw.rectangle((124, self.line4 + 2, 126, self.line4 + 10), outline='white', fill=self.WifiConn[3])
 
     def check_and_display_volume(self, volume):
+        logger.debug(f'Check Display Volume')
         if (self.oldVol != volume) and (self.oldVol != "FirstStart"):
             with canvas(self.device) as draw:
                 self.draw_loudspeaker(draw)
@@ -351,6 +357,7 @@ class PhonieBoxOledDisplay:
         self.oldVol = volume
 
     def draw_loudspeaker(self, draw):
+        logger.debug(f'Draw Loudspeaker')
         rectangle = (-34 + self.device.width // 2, -10 + self.device.height // 2,
                      -19 + self.device.width // 2, 10 + self.device.height // 2)
         polygon = [
@@ -363,6 +370,7 @@ class PhonieBoxOledDisplay:
         draw.polygon(polygon, outline="white", fill="white")
 
     def check_and_display_play_status(self, playing):
+        logger.debug(f'Display Play Status {playing}')
         if self.oldPlaying != playing:
             showTime = self.displayTime
             if playing == "play":
@@ -378,16 +386,16 @@ class PhonieBoxOledDisplay:
         sleep(showTime)
 
     def showPlaySymbol(self, showTime):
-        logger.info('ShowPlayymbol')
+        logger.debug('ShowPlayymbol')
         draw_functions.drawPlaySymbol(self.device)
         sleep(showTime)
 
 
     def read_mpc_status(self, use_python_lib=False):
+        logger.debug(f'Read MPC status')
         if use_python_lib:
             return self.read_mpc_status_using_python_mpd2()
-        with MPCStatusReader() as client:
-            mpd_info = client.get_info()
+        mpd_info = self.mpc_client.get_info()
         mpcstatus=''
         mpc_state=mpd_info.get('state')
         currMPC = mpd_info.get('song_description')
@@ -399,6 +407,7 @@ class PhonieBoxOledDisplay:
         return currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info
 
     def get_volume(self, mpc_state, mpcstatus):
+        logger.debug(f'Get Volume')
         if (mpc_state == "play") or (mpc_state == "pause"):
             volume = mpcstatus.split("\n")[2].split("   ")[0].split(":")[1]
         else:
@@ -436,6 +445,7 @@ class PhonieBoxOledDisplay:
             sleep(self.displayTime)
 
     def drawSpecialInfo(self, specialInfos):
+        logger.debug(f'Draw Special Info')
         with canvas(self.device) as draw:
             draw.text((0, self.line1), "WLAN: " + specialInfos[0], font=font_small, fill="white")
             draw.text((0, self.line2), "IP:   " + specialInfos[1], font=font_small, fill="white")
@@ -465,7 +475,7 @@ class PhonieBoxOledDisplay:
                 else:
                     oldContrast = self.check_and_update_contrast(oldContrast)
                     currMPC, mpcstatus, mpc_state, vol, volume, elapsed, mpd_info = self.read_mpc_status()
-                    mpc_state = mpd_info['status']
+                    mpc_state = mpd_info['state']
                     self.check_and_display_play_status(mpc_state)
                     self.check_and_display_volume(volume)
                     if (mpc_state == "play") or (mpc_state == "pause"):
@@ -490,7 +500,8 @@ class PhonieBoxOledDisplay:
                         else:
                             self.ShowImage("cardhand")
                             self.tmpcard = 0
-            except:
+            except Exception as error:
+                logger.exception(error)
                 sleep(0.5)
                 self.ShowImage("music")
 

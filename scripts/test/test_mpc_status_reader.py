@@ -27,10 +27,12 @@ class TestMPCStatusReader:
         with MPCStatusReader() as client:
             print(client.get_status())
 
+    @pytest.mark.skip
     def test_has_messages(self):
         with MPCStatusReader() as client:
             client.has_messages()
 
+    @pytest.mark.skip
     @pytest.mark.parametrize('msgs,expected,has_msgs',
                              [
                                  ([], None, False),

@@ -3,5 +3,5 @@ pytest
 mock
 luma.oled
 netifaces
-python-mpd2import
+python-mpd2
 wifiinfo
